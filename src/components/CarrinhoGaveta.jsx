@@ -10,7 +10,7 @@ export default function CarrinhoGaveta() {
   const navigate = useNavigate();
   const [processandoCheckout, setProcessandoCheckout] = useState(false);
 
-  // 🔴 COLOQUE AQUI A URL DE PRODUÇÃO DO SEU WEBHOOK DO N8N
+  // 🔴 COLOQUE AQUI A SUA URL DE PRODUÇÃO DO WEBHOOK DO N8N CLOUD
   const URL_WEBHOOK_N8N = "https://importadosdaval.app.n8n.cloud/webhook/checkout-infinitepay";
 
   const { 
@@ -25,7 +25,6 @@ export default function CarrinhoGaveta() {
 
   if (!carrinhoAberto) return null;
 
-  // 🎯 CORRIGIDO: Agora com "c" para bater exatamente com a chamada do botão
   const executarCheckoutAutomatizado = async () => {
     if (carrinho.length === 0) return;
 
@@ -107,6 +106,7 @@ export default function CarrinhoGaveta() {
         }))
       };
 
+      // 🌐 3. POST PARA O WEBHOOK DO N8N
       const resposta = await fetch(URL_WEBHOOK_N8N, {
         method: 'POST',
         headers: { 
@@ -117,13 +117,18 @@ export default function CarrinhoGaveta() {
 
       if (!resposta.ok) throw new Error("Erro na resposta do servidor de checkout (n8n).");
 
-      const dadosRetorno = await response.json();
+      const dadosRetorno = await resposta.json();
 
-      if (dadosRetorno && dadosRetorno.url) {
-        window.location.href = dadosRetorno.url;
+      // 🎯 BUSCA INTELIGENTE: Tenta pegar a URL de qualquer estrutura que o n8n devolver
+      const urlCheckout = dadosRetorno?.url || dadosRetorno?.body?.url || dadosRetorno?.data?.url;
+
+      // 🎯 4. REDIRECIONA PARA O CHECKOUT RETORNADO VIA N8N
+      if (urlCheckout) {
+        window.location.href = urlCheckout;
         limparCarrinho();
         setCarrinhoAberto(false);
       } else {
+        console.error("Dados recebidos do n8n que falharam:", dadosRetorno);
         alert("Não foi possível processar o link de pagamento junto à InfinitePay.");
       }
 
