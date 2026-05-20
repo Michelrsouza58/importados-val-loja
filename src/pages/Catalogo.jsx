@@ -43,7 +43,7 @@ export default function Catalogo() {
       {/* Header Luxo */}
       <div className="pt-16 pb-10 px-4 text-center">
         <h1 className="text-3xl md:text-4xl font-['Playfair_Display'] italic text-[#4A3737] tracking-tight">
-          Val <span className="text-[#B76E79]">Importados da Val</span>
+          <span className="text-[#B76E79]">Importados da Val</span>
         </h1>
         <div className="flex items-center justify-center gap-3 my-4">
           <div className="h-[1px] w-10 bg-[#B76E79]/40"></div>
