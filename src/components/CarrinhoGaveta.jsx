@@ -11,7 +11,7 @@ export default function CarrinhoGaveta() {
   const [processandoCheckout, setProcessandoCheckout] = useState(false);
 
   // 🔴 COLOQUE AQUI A URL DE PRODUÇÃO DO SEU WEBHOOK DO N8N
-  const URL_WEBHOOK_N8N = "https://seu-n8n.com/webhook/checkout-infinitepay";
+  const URL_WEBHOOK_N8N = "https://importadosdaval.app.n8n.cloud/webhook/checkout-infinitepay";
 
   const { 
     carrinho, 
