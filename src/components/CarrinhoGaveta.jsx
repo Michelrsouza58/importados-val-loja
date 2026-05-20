@@ -1,13 +1,15 @@
 // src/components/CarrinhoGaveta.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useCarrinho } from '../context/CarrinhoContext';
 import { db, auth } from '../config/firebase';
 import { ref, runTransaction, set, push } from 'firebase/database';
-import { FiX, FiPlus, FiMinus, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiPlus, FiMinus, FiTrash2, FiCreditCard } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 export default function CarrinhoGaveta() {
   const navigate = useNavigate();
+  const [processandoCheckout, setProcessandoCheckout] = useState(false);
+
   const { 
     carrinho, 
     carrinhoAberto, 
@@ -20,19 +22,19 @@ export default function CarrinhoGaveta() {
 
   if (!carrinhoAberto) return null;
 
-  const enviarPedidoWhatsApp = async () => {
+  const executarCheckoutAutomatizado = async () => {
     if (carrinho.length === 0) return;
 
-    // 🔒 Trava de Segurança: Exige login antes de disparar o processo
     const usuarioLogado = auth.currentUser;
     if (!usuarioLogado) {
-      alert("Para concluir seu pedido com segurança, faça login ou cadastre-se primeiro! Seus itens continuarão salvos na sacola. 😊");
+      alert("Para concluir seu pagamento com segurança, faça login ou cadastre-se primeiro! 😊");
       setCarrinhoAberto(false);
       navigate('/login');
       return;
     }
 
-    // 🎯 FILTRAGEM BLINDADA: Converte e isola os dois fluxos de estoque com segurança
+    setProcessandoCheckout(true);
+
     const itensProntaEntrega = carrinho.filter(item => {
       const estoque = item.QuantidadeEstoque !== undefined ? Number(item.QuantidadeEstoque) : 0;
       return estoque > 0;
@@ -44,83 +46,96 @@ export default function CarrinhoGaveta() {
     });
 
     try {
-      let idsMensagemWpp = [];
+      // 🎯 IDs de controle interno limpos (Sem o caractere # para não quebrar a API)
+      let idPedidoLimpo = `ENC${Date.now().toString().substring(8)}`;
+      let idLoteEncomenda = 'Nenhum';
 
-      // 🛍️ FLUXO A: Itens que possuem Estoque Disponível
+      // Se houver pronta entrega, gera o ID sequencial com os zeros
       if (itensProntaEntrega.length > 0) {
         const contadorRef = ref(db, 'configuracoes/ultimoPedidoId');
         const resultadoContador = await runTransaction(contadorRef, (valorAtual) => {
           if (valorAtual === null) return 1;
           return valorAtual + 1;
         });
-
         const proximoId = resultadoContador.snapshot.val();
-        const numeroPedidoFormatado = `#${String(proximoId).padStart(7, '0')}`;
-        idsMensagemWpp.push(`🆔 *PEDIDO PRONTA ENTREGA:* ${numeroPedidoFormatado}`);
+        
+        // Formata apenas com os zeros (Ex: 0000005) para a InfinitePay aceitar liso
+        idPedidoLimpo = String(proximoId).padStart(7, '0');
+      }
 
+      if (itensEncomenda.length > 0) {
+        const loteRef = push(ref(db, `encomendas/${usuarioLogado.uid}`));
+        idLoteEncomenda = loteRef.key;
+      }
+
+      // 💾 1. SALVA NO FIREBASE (Aqui no banco nós guardamos com o # para manter seu padrão visual)
+      if (itensProntaEntrega.length > 0) {
         const novoPedidoRef = push(ref(db, 'pedidos'));
         await set(novoPedidoRef, {
-          NumeroPedido: numeroPedidoFormatado,
+          NumeroPedido: `#${idPedidoLimpo}`, // No banco fica #0000005
+          NumeroPedidoLimpo: idPedidoLimpo, // Guardamos a versão limpa para o n8n achar fácil depois
           UsuarioId: usuarioLogado.uid,
           UsuarioEmail: usuarioLogado.email,
-          Itens: itensProntaEntrega.map(item => ({
-            Id: item.Id,
-            Nome: item.Nome,
-            PrecoReal: item.PrecoReal,
-            Quantidade: item.quantidadeCarrinho
-          })),
+          Itens: itensProntaEntrega.map(i => ({ Id: i.Id, Nome: i.Nome, PrecoReal: i.PrecoReal, Quantidade: i.quantidadeCarrinho })),
           ValorTotal: itensProntaEntrega.reduce((soma, i) => soma + (i.PrecoReal * i.quantidadeCarrinho), 0),
           DataPedido: new Date().toLocaleDateString('pt-BR'),
           HoraPedido: new Date().toLocaleTimeString('pt-BR'),
-          Status: 'Pendente'
+          Status: 'Aguardando Pagamento'
         });
       }
 
-      // 📦 FLUXO B: Itens Esgotados salvos como Encomenda Independente
       if (itensEncomenda.length > 0) {
-        const loteEncomendaRef = push(ref(db, `encomendas/${usuarioLogado.uid}`));
-        const loteId = loteEncomendaRef.key;
-        const codVisual = `#ENC-${loteId.substring(1, 7).toUpperCase()}`;
-        idsMensagemWpp.push(`📦 *CÓDIGO DA ENCOMENDA:* ${codVisual}`);
-
-        await set(loteEncomendaRef, {
-          LoteId: loteId,
+        await set(ref(db, `encomendas/${usuarioLogado.uid}/${idLoteEncomenda}`), {
+          LoteId: idLoteEncomenda,
           UsuarioEmail: usuarioLogado.email,
           DataEncomenda: new Date().toLocaleDateString('pt-BR'),
           HoraEncomenda: new Date().toLocaleTimeString('pt-BR'),
-          Status: 'Aguardando Compra',
-          Itens: itensEncomenda.map(item => ({
-            Id: item.Id,
-            Nome: item.Nome,
-            PrecoReal: item.PrecoReal,
-            Quantidade: item.quantidadeCarrinho
-          }))
+          Status: 'Aguardando Pagamento',
+          Itens: itensEncomenda.map(i => ({ Id: i.Id, Nome: i.Nome, PrecoReal: i.PrecoReal, Quantidade: i.quantidadeCarrinho }))
         });
       }
 
-      // 📝 MENSAGEM ENXUTA E FORMATADA PRO WHATSAPP
-      let mensagem = `✨ *VAL IMPORTADOS - ATUALIZAÇÃO* ✨\n\n`;
-      mensagem += `Olá, Val! Acabei de registrar uma ação no site.\n\n`;
-      
-      idsMensagemWpp.forEach(linha => {
-        mensagem += `${linha}\n`;
+      // DETERMINA QUAL ID ENVIAR NA COBRANÇA (Se tiver pronta entrega vai o número, se não vai o código da encomenda)
+      const nsuCheckout = itensProntaEntrega.length > 0 ? idPedidoLimpo : idLoteEncomenda.replace(/[^a-zA-Z0-9]/g, '');
+
+      // 🎯 2. PAYLOAD ATUALIZADO CONFORME REQUISITOS DA DOCUMENTAÇÃO
+      const payloadInfinitePay = {
+        handle: "michelrsouza", // 👈 Seu handle oficial configurado
+        redirect_url: window.location.origin + "/meus-pedidos",
+        order_nsu: nsuCheckout, // 👈 ID sem caracteres especiais (#)
+        items: carrinho.map(item => ({
+          name: item.Nome.toUpperCase(),
+          price: Math.round(Number(item.PrecoReal) * 100), // Centavos inteiros
+          quantity: item.quantidadeCarrinho
+        }))
+      };
+
+      // 🌐 3. POST DIRETO PARA A INFINITEPAY
+      const resposta = await fetch("https://api.checkout.infinitepay.io/links", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadInfinitePay)
       });
 
-      mensagem += `\nAguardando as instruções para acompanhamento! 😊🥂`;
+      if (!resposta.ok) throw new Error("Erro na resposta da API da InfinitePay.");
 
-      // Número da Val
-      const numeroWhatsApp = "5517982268790"; 
-      const url = `https://api.whatsapp.com/send?phone=${numeroWhatsApp}&text=${encodeURIComponent(mensagem)}`;
-      
-      window.open(url, '_blank');
+      const dadosRetorno = await resposta.json();
 
-      // Reseta a aplicação local
-      limparCarrinho();
-      setCarrinhoAberto(false);
+      // 🎯 4. REDIRECIONA PARA O CHECKOUT DELES
+      if (dadosRetorno.url) {
+        window.location.href = dadosRetorno.url;
+        
+        limparCarrinho();
+        setCarrinhoAberto(false);
+      } else {
+        alert("Não foi possível processar o link de pagamento junto à InfinitePay.");
+      }
 
     } catch (error) {
-      console.error("Erro ao processar fluxo:", error);
-      alert("Houve um problema ao processar seu pedido. Tente novamente!");
+      console.error("Erro no Checkout Integrado:", error);
+      alert("Houve uma falha ao gerar o ambiente de pagamento. Tente novamente!");
+    } finally {
+      setProcessandoCheckout(false);
     }
   };
 
@@ -177,8 +192,18 @@ export default function CarrinhoGaveta() {
               <span className="text-xs font-semibold uppercase tracking-widest text-[#8C7A7A]">Subtotal:</span>
               <span className="text-lg font-['Playfair_Display'] font-black text-[#B76E79]">R$ {valorTotal.toFixed(2)}</span>
             </div>
-            <button onClick={enviarPedidoWhatsApp} disabled={carrinho.length === 0} className="w-full bg-[#B76E79] hover:bg-[#a35c67] disabled:bg-slate-200 text-white py-3.5 rounded-xl text-xs font-bold uppercase tracking-[0.2em] transition-all shadow-md flex items-center justify-center gap-2">
-              Confirmar e Enviar
+            <button 
+              onClick={executarCheckoutAutomatizado} 
+              disabled={carrinho.length === 0 || processandoCheckout} 
+              className="w-full bg-[#B76E79] hover:bg-[#a35c67] disabled:bg-slate-200 text-white py-3.5 rounded-xl text-xs font-bold uppercase tracking-[0.2em] transition-all shadow-md flex items-center justify-center gap-2"
+            >
+              {processandoCheckout ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <FiCreditCard size={13} /> Ir para o Pagamento Seguro
+                </>
+              )}
             </button>
           </div>
 

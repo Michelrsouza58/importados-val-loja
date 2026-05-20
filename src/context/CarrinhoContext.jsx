@@ -26,7 +26,7 @@ export function CarrinhoProvider({ children }) {
         );
       }
       
-      // 🎯 GARANTIA: O QuantidadeEstoque entra aqui blindado como número
+      // O QuantidadeEstoque entra aqui convertido como número
       return [
         ...itensAtuais, 
         { 
@@ -36,7 +36,9 @@ export function CarrinhoProvider({ children }) {
         }
       ];
     });
-    setCarrinhoAberto(true);
+    
+    // 🎯 ANTES TINHA UMA LINHA AQUI: setCarrinhoAberto(true);
+    // Removendo ela, o item acumula na sacola silenciosamente sem abrir a gaveta na tela!
   };
 
   const atualizarQuantidade = (id, novaQtd) => {
@@ -46,7 +48,7 @@ export function CarrinhoProvider({ children }) {
     }
     setCarrinho((itensAtuais) =>
       itensAtuais.map((item) =>
-        item.Id === id ? { ...item, quantidadeCarrinho: novaQtd } : item
+        item.Id === id ? { ...item, Comprehensive: novaQtd, quantidadeCarrinho: novaQtd } : item
       )
     );
   };
