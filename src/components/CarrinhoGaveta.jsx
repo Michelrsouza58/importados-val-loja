@@ -10,6 +10,9 @@ export default function CarrinhoGaveta() {
   const navigate = useNavigate();
   const [processandoCheckout, setProcessandoCheckout] = useState(false);
 
+  // 🔴 COLOQUE AQUI A URL DE PRODUÇÃO DO SEU WEBHOOK DO N8N
+  const URL_WEBHOOK_N8N = "https://seu-n8n.com/webhook/checkout-infinitepay";
+
   const { 
     carrinho, 
     carrinhoAberto, 
@@ -22,6 +25,7 @@ export default function CarrinhoGaveta() {
 
   if (!carrinhoAberto) return null;
 
+  // 🎯 CORRIGIDO: Agora com "c" para bater exatamente com a chamada do botão
   const executarCheckoutAutomatizado = async () => {
     if (carrinho.length === 0) return;
 
@@ -46,11 +50,9 @@ export default function CarrinhoGaveta() {
     });
 
     try {
-      // 🎯 IDs de controle interno limpos (Sem o caractere # para não quebrar a API)
       let idPedidoLimpo = `ENC${Date.now().toString().substring(8)}`;
       let idLoteEncomenda = 'Nenhum';
 
-      // Se houver pronta entrega, gera o ID sequencial com os zeros
       if (itensProntaEntrega.length > 0) {
         const contadorRef = ref(db, 'configuracoes/ultimoPedidoId');
         const resultadoContador = await runTransaction(contadorRef, (valorAtual) => {
@@ -58,8 +60,6 @@ export default function CarrinhoGaveta() {
           return valorAtual + 1;
         });
         const proximoId = resultadoContador.snapshot.val();
-        
-        // Formata apenas com os zeros (Ex: 0000005) para a InfinitePay aceitar liso
         idPedidoLimpo = String(proximoId).padStart(7, '0');
       }
 
@@ -68,12 +68,11 @@ export default function CarrinhoGaveta() {
         idLoteEncomenda = loteRef.key;
       }
 
-      // 💾 1. SALVA NO FIREBASE (Aqui no banco nós guardamos com o # para manter seu padrão visual)
       if (itensProntaEntrega.length > 0) {
         const novoPedidoRef = push(ref(db, 'pedidos'));
         await set(novoPedidoRef, {
-          NumeroPedido: `#${idPedidoLimpo}`, // No banco fica #0000005
-          NumeroPedidoLimpo: idPedidoLimpo, // Guardamos a versão limpa para o n8n achar fácil depois
+          NumeroPedido: `#${idPedidoLimpo}`,
+          NumeroPedidoLimpo: idPedidoLimpo,
           UsuarioId: usuarioLogado.uid,
           UsuarioEmail: usuarioLogado.email,
           Itens: itensProntaEntrega.map(i => ({ Id: i.Id, Nome: i.Nome, PrecoReal: i.PrecoReal, Quantidade: i.quantidadeCarrinho })),
@@ -95,36 +94,33 @@ export default function CarrinhoGaveta() {
         });
       }
 
-      // DETERMINA QUAL ID ENVIAR NA COBRANÇA (Se tiver pronta entrega vai o número, se não vai o código da encomenda)
       const nsuCheckout = itensProntaEntrega.length > 0 ? idPedidoLimpo : idLoteEncomenda.replace(/[^a-zA-Z0-9]/g, '');
 
-      // 🎯 2. PAYLOAD ATUALIZADO CONFORME REQUISITOS DA DOCUMENTAÇÃO
       const payloadInfinitePay = {
-        handle: "michelrsouza", // 👈 Seu handle oficial configurado
+        handle: "michelrsouza",
         redirect_url: window.location.origin + "/meus-pedidos",
-        order_nsu: nsuCheckout, // 👈 ID sem caracteres especiais (#)
+        order_nsu: nsuCheckout,
         items: carrinho.map(item => ({
           name: item.Nome.toUpperCase(),
-          price: Math.round(Number(item.PrecoReal) * 100), // Centavos inteiros
+          price: Math.round(Number(item.PrecoReal) * 100),
           quantity: item.quantidadeCarrinho
         }))
       };
 
-      // 🌐 3. POST DIRETO PARA A INFINITEPAY
-      const resposta = await fetch("https://api.checkout.infinitepay.io/links", {
+      const resposta = await fetch(URL_WEBHOOK_N8N, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(payloadInfinitePay)
       });
 
-      if (!resposta.ok) throw new Error("Erro na resposta da API da InfinitePay.");
+      if (!resposta.ok) throw new Error("Erro na resposta do servidor de checkout (n8n).");
 
-      const dadosRetorno = await resposta.json();
+      const dadosRetorno = await response.json();
 
-      // 🎯 4. REDIRECIONA PARA O CHECKOUT DELES
-      if (dadosRetorno.url) {
+      if (dadosRetorno && dadosRetorno.url) {
         window.location.href = dadosRetorno.url;
-        
         limparCarrinho();
         setCarrinhoAberto(false);
       } else {
