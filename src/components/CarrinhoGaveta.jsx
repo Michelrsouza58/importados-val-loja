@@ -1,5 +1,5 @@
 // src/components/CarrinhoGaveta.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCarrinho } from '../context/CarrinhoContext';
 import { db, auth } from '../config/firebase';
 import { ref, runTransaction, set, push } from 'firebase/database';
@@ -9,6 +9,9 @@ import { useNavigate } from 'react-router-dom';
 export default function CarrinhoGaveta() {
   const navigate = useNavigate();
   const [processandoCheckout, setProcessandoCheckout] = useState(false);
+  
+  // 🎯 ESTADO DOS CHECKBOXES: Armazena quais IDs de produto estão selecionados para o pagamento
+  const [itensSelecionados, setItensSelecionados] = useState({});
 
   // 🔴 COLOQUE AQUI A SUA URL DE PRODUÇÃO DO WEBHOOK DO N8N CLOUD
   const URL_WEBHOOK_N8N = "https://importadosdaval.app.n8n.cloud/webhook/checkout-infinitepay";
@@ -19,14 +22,47 @@ export default function CarrinhoGaveta() {
     setCarrinhoAberto, 
     atualizarQuantidade, 
     removerDoCarrinho, 
-    valorTotal,
     limparCarrinho
   } = useCarrinho();
 
+  // 🎯 Sincroniza os itens selecionados sempre que o carrinho mudar (garante que novos itens entrem marcados)
+  useEffect(() => {
+    const novosSelecionados = { ...itensSelecionados };
+    carrinho.forEach(item => {
+      if (novosSelecionados[item.Id] === undefined) {
+        novosSelecionados[item.Id] = true; // Todo item entra marcado por padrão
+      }
+    });
+    setItensSelecionados(novosSelecionados);
+  }, [carrinho]);
+
   if (!carrinhoAberto) return null;
 
+  // 🎯 Alterna o estado do checkbox de um item específico
+  const toggleSelecaoItem = (id) => {
+    setItensSelecionados(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  // 🎯 CÁLCULO DINÂMICO DO VALOR TOTAL: Soma apenas os itens que estão com o checkbox como true
+  const valorTotalSelecionados = carrinho.reduce((soma, item) => {
+    const estaSelecionado = itensSelecionados[item.Id] !== false;
+    if (estaSelecionado) {
+      return soma + (Number(item.PrecoReal) * item.quantidadeCarrinho);
+    }
+    return soma;
+  }, 0);
+
+  // 🎯 FILTRAGEM DOS ITENS QUE VÃO COMPOR O CHECKOUT
+  const carrinhoAtivoParaCheckout = carrinho.filter(item => itensSelecionados[item.Id] !== false);
+
   const executarCheckoutAutomatizado = async () => {
-    if (carrinho.length === 0) return;
+    if (carrinhoAtivoParaCheckout.length === 0) {
+      alert("Selecione pelo menos um produto com o checkbox para prosseguir! 😉");
+      return;
+    }
 
     const usuarioLogado = auth.currentUser;
     if (!usuarioLogado) {
@@ -38,12 +74,12 @@ export default function CarrinhoGaveta() {
 
     setProcessandoCheckout(true);
 
-    const itensProntaEntrega = carrinho.filter(item => {
+    const itensProntaEntrega = carrinhoAtivoParaCheckout.filter(item => {
       const estoque = item.QuantidadeEstoque !== undefined ? Number(item.QuantidadeEstoque) : 0;
       return estoque > 0;
     });
 
-    const itensEncomenda = carrinho.filter(item => {
+    const itensEncomenda = carrinhoAtivoParaCheckout.filter(item => {
       const estoque = item.QuantidadeEstoque !== undefined ? Number(item.QuantidadeEstoque) : 0;
       return estoque <= 0;
     });
@@ -99,7 +135,7 @@ export default function CarrinhoGaveta() {
         handle: "michelrsouza",
         redirect_url: window.location.origin + "/meus-pedidos",
         order_nsu: nsuCheckout,
-        items: carrinho.map(item => ({
+        items: carrinhoAtivoParaCheckout.map(item => ({
           name: item.Nome.toUpperCase(),
           price: Math.round(Number(item.PrecoReal) * 100),
           quantity: item.quantidadeCarrinho
@@ -119,13 +155,15 @@ export default function CarrinhoGaveta() {
 
       const dadosRetorno = await resposta.json();
 
-      // 🎯 BUSCA INTELIGENTE: Tenta pegar a URL de qualquer estrutura que o n8n devolver
       const urlCheckout = dadosRetorno?.url || dadosRetorno?.body?.url || dadosRetorno?.data?.url;
 
       // 🎯 4. REDIRECIONA PARA O CHECKOUT RETORNADO VIA N8N
       if (urlCheckout) {
         window.location.href = urlCheckout;
-        limparCarrinho();
+        
+        // Remove do carrinho global apenas os itens selecionados que foram pagos
+        carrinhoAtivoParaCheckout.forEach(item => removerDoCarrinho(item.Id));
+        
         setCarrinhoAberto(false);
       } else {
         console.error("Dados recebidos do n8n que falharam:", dadosRetorno);
@@ -141,7 +179,7 @@ export default function CarrinhoGaveta() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden font-['Montserrat']">
+    <div className="fixed inset-0 z-50 overflow-hidden font-['Montserrat'] select-none">
       <div className="absolute inset-0 bg-[#4A3737]/30 backdrop-blur-sm transition-opacity" onClick={() => setCarrinhoAberto(false)} />
       <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md bg-[#FAF9F6] shadow-2xl border-l border-[#E5B299]/30 flex flex-col justify-between">
@@ -162,11 +200,29 @@ export default function CarrinhoGaveta() {
             ) : (
               carrinho.map((item) => {
                 const ehEncomenda = (item.QuantidadeEstoque !== undefined ? Number(item.QuantidadeEstoque) : 0) <= 0;
+                const estaSelecionado = itensSelecionados[item.Id] !== false;
+
                 return (
-                  <div key={item.Id} className={`flex items-center gap-4 bg-white p-3 rounded-2xl border shadow-sm ${ehEncomenda ? 'border-amber-200/60' : 'border-[#E5B299]/20'}`}>
+                  <div key={item.Id} className={`flex items-center gap-3 bg-white p-3 rounded-2xl border shadow-sm transition-all ${
+                    estaSelecionado 
+                      ? ehEncomenda ? 'border-amber-200 bg-white' : 'border-[#E5B299]/40 bg-white'
+                      : 'border-slate-100 bg-slate-50/50 opacity-70'
+                  }`}>
+                    
+                    {/* 🎯 CHECKBOX ESTILIZADO BOUTIQUE */}
+                    <div className="flex items-center justify-center pl-1">
+                      <input 
+                        type="checkbox"
+                        checked={estaSelecionado}
+                        onChange={() => toggleSelecaoItem(item.Id)}
+                        className="w-4 h-4 rounded-md border-gray-300 text-[#B76E79] focus:ring-[#B76E79] cursor-pointer accent-[#B76E79]"
+                      />
+                    </div>
+
                     <div className="w-16 h-20 bg-[#FAF9F6] rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
                       {item.FotoUrl ? <img src={item.FotoUrl} alt={item.Nome} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-300">IMAGE</div>}
                     </div>
+
                     <div className="flex-1 min-w-0">
                       <h4 className="text-xs font-bold text-[#4A3737] uppercase tracking-wide truncate">{item.Nome}</h4>
                       <div className="flex items-center gap-2 mt-1">
@@ -190,19 +246,19 @@ export default function CarrinhoGaveta() {
 
           <div className="p-5 bg-white border-t border-[#E5B299]/20 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-[#8C7A7A]">Subtotal:</span>
-              <span className="text-lg font-['Playfair_Display'] font-black text-[#B76E79]">R$ {valorTotal.toFixed(2)}</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-[#8C7A7A]">Subtotal Selecionado:</span>
+              <span className="text-lg font-['Playfair_Display'] font-black text-[#B76E79]">R$ {valorTotalSelecionados.toFixed(2)}</span>
             </div>
             <button 
               onClick={executarCheckoutAutomatizado} 
-              disabled={carrinho.length === 0 || processandoCheckout} 
+              disabled={carrinhoAtivoParaCheckout.length === 0 || processandoCheckout} 
               className="w-full bg-[#B76E79] hover:bg-[#a35c67] disabled:bg-slate-200 text-white py-3.5 rounded-xl text-xs font-bold uppercase tracking-[0.2em] transition-all shadow-md flex items-center justify-center gap-2"
             >
               {processandoCheckout ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <FiCreditCard size={13} /> Ir para o Pagamento Seguro
+                  <FiCreditCard size={13} /> Pagar Itens Selecionados ({carrinhoAtivoParaCheckout.length})
                 </>
               )}
             </button>
