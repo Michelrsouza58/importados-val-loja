@@ -1,0 +1,94 @@
+{
+  "project_name": "Importados da Val",
+  "archetype": "LUXURY_EDITORIAL_BEAUTY",
+  "target_audience": "Brazilian women who value high-end imported cosmetics, perfumes, bodysplashes & skincare with a high-trust boutique aesthetic",
+  "design_level": "Awwwards Site-of-the-Day",
+  "theme": {
+    "mode": "light",
+    "background": "#FAF9F6",
+    "surface": "#FFFFFF",
+    "surface_tint": "#F5ECE6",
+    "text_primary": "#2C1D1D",
+    "text_secondary": "#6E5B5B",
+    "brand_rose_gold": "#B76E79",
+    "brand_dark_espresso": "#4A3737",
+    "brand_peach_nude": "#E5B299",
+    "brand_gold_accent": "#D4AF37",
+    "border_light": "rgba(74, 55, 55, 0.12)",
+    "glass_bg": "rgba(255, 255, 255, 0.75)",
+    "glass_border": "rgba(183, 110, 121, 0.2)"
+  },
+  "typography": {
+    "headings": {
+      "family": "'Playfair Display', 'Cormorant Garamond', serif",
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.08]",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight leading-[1.15]",
+      "h3": "text-xl sm:text-2xl font-medium leading-[1.2]",
+      "h4": "text-lg sm:text-xl font-medium"
+    },
+    "body": {
+      "family": "'Montserrat', 'Figtree', sans-serif",
+      "base": "text-base leading-relaxed text-[#6E5B5B]",
+      "small": "text-sm text-[#6E5B5B]",
+      "eyebrow": "uppercase tracking-[0.25em] text-xs font-semibold text-[#B76E79]"
+    },
+    "mono_price": {
+      "family": "'JetBrains Mono', monospace",
+      "class": "font-mono font-medium tracking-tight text-[#2C1D1D]"
+    }
+  },
+  "spacing_and_layout": {
+    "grid_modes": {
+      "hero_tetris": "grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-center",
+      "editorial_manifesto": "grid grid-cols-1 md:grid-cols-3 gap-8 p-8 md:p-12",
+      "bento_products": "grid grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-6 lg:gap-8",
+      "dashboard_dense": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
+    },
+    "containers": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "padding_philosophy": "Use generous padding (py-20 to py-32 for sections) with strict internal card padding (p-6 to p-8) to avoid text collision."
+  },
+  "motion_and_libraries": {
+    "lenis_smooth_scroll": "Wrap app with Lenis smooth momentum scrolling for effortless weighted movement.",
+    "framer_motion": {
+      "line_by_line_reveal": "Masked line reveal on Hero heading using initial opacity 0, y: 40, transition easeOut duration 0.8s staggered by line.",
+      "scroll_stagger": "Viewport once: false, margin '-100px', opacity 0 to 1, y 30 to 0",
+      "hover_spotlight": "Scale 1.03 with glow border highlight on product cards"
+    },
+    "interactive_3d": "Subtle interactive 3D/Canvas bottle float tilt effect with mouse light reflection"
+  },
+  "key_features_and_flows": {
+    "hero_section": "Kinetic Hero with line-by-line reveal, spotlight hero product framing, floating badges 'Original 100% Importado', quick CTA catalog jump",
+    "manifesto_chapters": "3 Numbered Manifesto chapters (01. Curadoria Exclusiva, 02. Fixação & Autenticidade, 03. Experiência Boutique) with editorial typography and high-contrast lines",
+    "editorial_marquee": "Slow drifter marquee with low-contrast luxury text ('PERFUMES IMPORTADOS • BODY SPLASH • MAKEUP INTERNACIONAL • SKINCARE PREMIUM')",
+    "product_catalog": "Filter by category (Perfumes, Bodysplash, Maquiagem, Skincare), live search, variant selector, quick add to cart modal",
+    "variant_selector_modal": "Product detail modal supporting variants (e.g. Aroma 1 vs Aroma 2) updating price, photo, and stock live",
+    "side_cart_drawer": "Slide-over cart with subtotal, free shipping progress bar, and 1-click checkout options: Pix (InfinitePay - 5% OFF badge) & Cartão de Crédito (Mercado Pago até 12x)",
+    "customer_account": "Login / Registration modal & 'Meus Pedidos' order status tracking page",
+    "admin_dashboard": "Comprehensive Admin Panel to add/edit products with variants, financial parameters (markup, tax, shipping rates), payment credentials (Mercado Pago & InfinitePay keys), and sub-admins management"
+  },
+  "image_urls": {
+    "hero_perfume_pink": "https://images.pexels.com/photos/13875786/pexels-photo-13875786.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "hero_perfume_frosted": "https://images.pexels.com/photos/34089130/pexels-photo-34089130.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "hero_perfume_clear": "https://images.unsplash.com/photo-1543422655-ac1c6ca993ed?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwzfHxsdXh1cnklMjBwZXJmdW1lJTIwYm90dGxlJTIwYWVzdGhldGljJTIwY29zbWV0aWN8ZW58MHx8fHwxNzg5OTk0Nzg4fDA&ixlib=rb-4.1.0&q=85",
+    "skincare_serum_dropper": "https://images.pexels.com/photos/8101534/pexels-photo-8101534.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "skincare_serum_amber": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwxfHxza2luY2FyZSUyMGJvdHRsZSUyMGxpcXVpZCUyMGRyb3BwZXIlMjBzZXJ1bSUyMGx1eHVyeXxlbnwwfHx8fDE3ODk5OTQ3ODh8MA&ixlib=rb-4.1.0&q=85",
+    "makeup_gold_lipstick": "https://images.pexels.com/photos/90269/pexels-photo-90269.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "makeup_red_lipsticks": "https://images.pexels.com/photos/90297/pexels-photo-90297.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "makeup_beige_lipstick": "https://images.unsplash.com/photo-1555050455-f96634b5cba6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBtYWtldXAlMjBsaXBzdGljayUyMGNvc21ldGljcyUyMGdvbGQlMjBwYWNrYWdpbmd8ZW58MHx8fHwxNzg5OTk0Nzg4fDA&ixlib=rb-4.1.0&q=85",
+    "existing_assets": {
+      "hero_png": "/hero.png",
+      "importados_png": "/Importados.png"
+    }
+  },
+  "testing_attributes": {
+    "data_testid_convention": "All interactive elements, buttons, inputs, tabs, modals, cart triggers, and price displays MUST include explicit data-testid attributes (e.g. data-testid='hero-cta-button', data-testid='product-card-1', data-testid='variant-select-aroma-1', data-testid='checkout-pix-button', data-testid='admin-product-variant-add')."
+  },
+  "instructions_to_main_agent": [
+    "Implement Lenis smooth scroll and Framer Motion micro-animations across all pages.",
+    "Build the Kinetic Hero with line-by-line masked text reveal & floating product spotlight.",
+    "Ensure all product cards include clipped frame styling, hover spotlight effects, and variant selection modals.",
+    "Integrate Mercado Pago (card) and InfinitePay (Pix) checkout options with dynamic discount calculation.",
+    "Implement full Admin Panel for managing products, variants, financial parameters, and credentials.",
+    "Apply Playfair Display for headings and Montserrat for body text. Use data-testid on all interactive elements."
+  ]
+}
